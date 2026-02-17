@@ -47,14 +47,6 @@ DB_USERNAME=root
 DB_PASSWORD=your_password
 ```
 
-### 5. Create DB
-
-```bash
-# MySQL
-mysql -u root -p
-CREATE DATABASE news_api CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-EXIT;
-```
 
 ### 6. Migrate
 
