@@ -14,34 +14,21 @@ class StoreNewsBlockRequest extends FormRequest
 
     public function rules(): array
     {
+        return [
+            'title' => 'required|string|max:255',
+            'image' => 'nullable|image|max:2048',
+            'short_description' => 'required|string',
+            'is_published' => 'required|boolean',
 
-        $newsId   = (int) $this->route('newsId');
-
-        $maxOrder = ContentBlock::where('news_id', $newsId)->max('order') ?? 0;
-        $type     = $this->input('type');
-
-        $rules = [
-            'type'  => 'required|in:text,image,text_image_right,text_image_left',
-            'order' => ['nullable', 'integer', 'min:1', 'max:' . ($maxOrder + 1)],
+            // Валідація масиву блоків
+            'content_blocks' => 'nullable|array',
+            'content_blocks.*.type' => 'required|in:text,image,text_image_right,text_image_left',
+            'content_blocks.*.order' => 'required|integer|min:1',
+            'content_blocks.*.text_content' => 'required_if:content_blocks.*.type,text,text_image_right,text_image_left|nullable|string',
+            'content_blocks.*.image' => 'required_if:content_blocks.*.type,image,text_image_right,text_image_left|nullable|image|max:2048',
         ];
-
-        if ($type === 'text') {
-            $rules['text_content'] = 'required|string';
-            $rules['image']        = 'prohibited';
-        }
-
-        if ($type === 'image') {
-            $rules['image']        = 'required|image|max:2048';
-            $rules['text_content'] = 'prohibited';
-        }
-
-        if (in_array($type, ['text_image_right', 'text_image_left'])) {
-            $rules['text_content'] = 'required|string';
-            $rules['image']        = 'required|image|max:2048';
-        }
-
-        return $rules;
     }
+
 
     public function messages(): array
     {

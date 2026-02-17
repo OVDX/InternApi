@@ -31,10 +31,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/', [NewsController::class, 'store']);
         Route::post('/{id}', [NewsController::class, 'update']);
         Route::delete('/{id}', [NewsController::class, 'destroy']);
-        Route::prefix('{newsId}/blocks')->group(function () {
-            Route::post('/', [NewsBlockController::class, 'store']);
-            Route::post('/{blockId}', [NewsBlockController::class, 'update']);
-            Route::delete('/{blockId}', [NewsBlockController::class, 'destroy']);
-        });
+//        Route::prefix('{newsId}/blocks')->group(function () {
+//            Route::post('/', [NewsBlockController::class, 'store']);
+//            Route::post('/{blockId}', [NewsBlockController::class, 'update']);
+//            Route::delete('/{blockId}', [NewsBlockController::class, 'destroy']);
+//        });
     });
 });
