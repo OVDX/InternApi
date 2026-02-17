@@ -54,6 +54,12 @@ DB_PASSWORD=your_password
 php artisan migrate
 ```
 
+###  Optional seed tables
+
+```bash
+php artisan db:seed
+```
+
 ### 7. Create link for storage
 
 ```bash
