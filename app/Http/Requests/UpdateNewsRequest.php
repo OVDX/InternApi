@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Category;
 use App\Models\ContentBlock;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -18,6 +19,9 @@ class UpdateNewsRequest extends FormRequest
             'title' => 'sometimes|string|max:255',
             'image' => 'sometimes|image|mimes:jpeg,jpg,png|max:2048',
             'short_description' => 'sometimes|string',
+
+            'category_ids' => 'nullable|array|max:10',
+            'category_ids.*' => 'integer|exists:categories,id',
 
             'content_blocks' => 'sometimes|array|max:50',
             'content_blocks.*.id' => 'sometimes|integer|exists:content_blocks,id',
@@ -36,6 +40,11 @@ class UpdateNewsRequest extends FormRequest
             'image.mimes' => 'Підтримуються тільки форматі: jpeg, jpg, png',
             'image.max' => 'Розмір зображення не може перевищувати 2MB',
 
+            'category_ids.array' => 'Категорії мають бути масивом',
+            'category_ids.max' => 'Максимум 10 категорій',
+            'category_ids.*.integer' => 'ID категорії має бути числом',
+            'category_ids.*.exists' => 'Категорія не існує',
+
             'content_blocks.max' => 'Максимальна кількість блоків - 50',
             'content_blocks.*.id.exists' => 'Блок з таким ID не існує',
             'content_blocks.*.type.required' => 'Тип блоку є обов\'язковим',
@@ -53,6 +62,19 @@ class UpdateNewsRequest extends FormRequest
     public function withValidator($validator)
     {
         $validator->after(function ($validator) {
+            $categoryIds = $this->input('category_ids', []);
+
+            if (!empty($categoryIds)) {
+                $activeCount = Category::whereIn('id', $categoryIds)
+                    ->where('is_active', true)
+                    ->count();
+
+                if ($activeCount !== count($categoryIds)) {
+                    $validator->errors()->add('category_ids',
+                        'Одна або декілька категорій неактивні або не існують');
+                }
+            }
+
             $blocks = $this->input('content_blocks', []);
             $newsId = $this->route('id');
 

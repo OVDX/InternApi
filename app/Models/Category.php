@@ -13,12 +13,11 @@ use OpenApi\Attributes as OA;
     properties: [
         new OA\Property(property: 'id', type: 'integer', example: 1),
         new OA\Property(property: 'name', type: 'string', example: 'Технології'),
-        new OA\Property(property: 'description', type: 'string', example: 'Новини про технології'),
+        new OA\Property(property: 'description', type: 'string', example: 'Новини про технології', nullable: true),
         new OA\Property(property: 'position', type: 'integer', example: 1),
         new OA\Property(property: 'is_active', type: 'boolean', example: true),
-        new OA\Property(property: 'created_at', type: 'string', format: 'date-time'),
-        new OA\Property(property: 'updated_at', type: 'string', format: 'date-time'),
-    ]
+    ],
+    type: 'object'
 )]
 class Category extends Model
 {
@@ -32,26 +31,17 @@ class Category extends Model
         'is_active' => 'boolean',
     ];
 
-    /**
-     * Зв'язок з новинами (Many-to-Many)
-     */
     public function news()
     {
         return $this->belongsToMany(News::class, 'category_news')
             ->withTimestamps();
     }
 
-    /**
-     * Scope для отримання тільки активних категорій
-     */
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
     }
 
-    /**
-     * Scope для сортування за позицією
-     */
     public function scopeOrdered($query)
     {
         return $query->orderBy('position', 'asc');

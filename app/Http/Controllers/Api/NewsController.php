@@ -63,7 +63,7 @@ class NewsController extends Controller
     public function index(Request $request)
     {
         try {
-            $query = News::with(['contentBlocks', 'user'])
+            $query = News::with(['contentBlocks', 'user','categories'])
                 ->where('user_id', $request->user()->id);
 
             if ($request->filled('search')) {
@@ -102,7 +102,6 @@ class NewsController extends Controller
         path: '/api/news',
         summary: 'Створити новину',
         security: [['sanctum' => []]],
-        tags: [OpenApiSpec::TAG_NEWS],
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\MediaType(
@@ -110,6 +109,7 @@ class NewsController extends Controller
                 schema: new OA\Schema(ref: '#/components/schemas/NewsStoreRequest')
             )
         ),
+        tags: [OpenApiSpec::TAG_NEWS],
         responses: [
             new OA\Response(response: 201, description: 'Created'),
             new OA\Response(response: 422, description: 'Validation error'),
@@ -136,6 +136,10 @@ class NewsController extends Controller
                 'published_at' => $request->boolean('is_published') ? now() : null,
             ]);
 
+            if ($request->has('category_ids')) {
+                $news->categories()->sync($request->category_ids);
+            }
+
             if ($request->has('content_blocks')) {
                 $this->newsService->processContentBlocks(
                     $news,
@@ -148,7 +152,7 @@ class NewsController extends Controller
             DB::commit();
 
             return $this->successResponse(
-                NewsResource::make($news->load(['contentBlocks', 'user'])),
+                NewsResource::make($news->load(['contentBlocks', 'user', 'categories'])),
                 201
             );
 
@@ -186,7 +190,7 @@ class NewsController extends Controller
     public function show(int $id)
     {
         try {
-            $news = News::with(['contentBlocks', 'user'])
+            $news = News::with(['contentBlocks', 'user','categories'])
                 ->where('user_id', auth()->id())
                 ->findOrFail($id);
 
@@ -237,6 +241,10 @@ class NewsController extends Controller
 
             $news->update($data);
 
+            if ($request->has('category_ids')) {
+                $news->categories()->sync($request->category_ids);
+            }
+
             if ($request->has('content_blocks')) {
                 $this->newsService->processContentBlocks(
                     $news,
@@ -249,7 +257,7 @@ class NewsController extends Controller
             DB::commit();
 
             return $this->successResponse(
-                NewsResource::make($news->load(['contentBlocks', 'user']))
+                NewsResource::make($news->load(['contentBlocks', 'user','categories'])),
             );
 
         } catch (ModelNotFoundException $e) {

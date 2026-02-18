@@ -30,6 +30,12 @@ use OpenApi\Attributes as OA;
             type: 'array',
             items: new OA\Items(ref: '#/components/schemas/ContentBlockResource')
         ),
+        new OA\Property(
+            property: 'categories',
+            description: 'Категорії новини (перекладені згідно Accept-Language)',
+            type: 'array',
+            items: new OA\Items(ref: '#/components/schemas/Category')
+        ),
         new OA\Property(property: 'created_at', type: 'string', format: 'date-time', example: '2024-01-01 12:00:00'),
         new OA\Property(property: 'updated_at', type: 'string', format: 'date-time', example: '2024-01-01 12:00:00'),
     ],
@@ -52,6 +58,9 @@ class NewsResource extends JsonResource
                 'avatar' => getAvatarUrl($this->user->avatar),
             ],
             'content_blocks' => ContentBlockResource::collection($this->whenLoaded('contentBlocks')),
+
+            'categories' => CategoryResource::collection($this->whenLoaded('categories')),
+
             'created_at' => $this->created_at->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at->format('Y-m-d H:i:s'),
         ];

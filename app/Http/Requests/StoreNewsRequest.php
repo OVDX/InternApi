@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Category;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreNewsRequest extends FormRequest
@@ -18,6 +19,9 @@ class StoreNewsRequest extends FormRequest
             'image' => 'nullable|image|mimes:jpeg,jpg,png|max:2048',
             'short_description' => 'required|string',
             'is_published' => 'required|in:true,false,0,1',
+
+            'category_ids' => 'nullable|array|max:10',
+            'category_ids.*' => 'integer|exists:categories,id',
 
             'content_blocks' => 'nullable|array|max:50',
             'content_blocks.*.type' => 'required|in:text,image,text_image_right,text_image_left',
@@ -39,6 +43,11 @@ class StoreNewsRequest extends FormRequest
             'is_published.required' => 'Статус публікації є обов\'язковим',
             'is_published.in' => 'Статус публікації має бути true або false',
 
+            'category_ids.array' => 'Категорії мають бути масивом',
+            'category_ids.max' => 'Максимум 10 категорій',
+            'category_ids.*.integer' => 'ID категорії має бути числом',
+            'category_ids.*.exists' => 'Категорія не існує',
+
             'content_blocks.max' => 'Максимальна кількість блоків - 50',
             'content_blocks.*.type.required' => 'Тип блоку є обов\'язковим',
             'content_blocks.*.type.in' => 'Тип має бути: text, image, text_image_right, text_image_left',
@@ -55,6 +64,19 @@ class StoreNewsRequest extends FormRequest
     public function withValidator($validator)
     {
         $validator->after(function ($validator) {
+            $categoryIds = $this->input('category_ids', []);
+
+            if (!empty($categoryIds)) {
+                $activeCount = Category::whereIn('id', $categoryIds)
+                    ->where('is_active', true)
+                    ->count();
+
+                if ($activeCount !== count($categoryIds)) {
+                    $validator->errors()->add('category_ids',
+                        'Одна або декілька категорій неактивні або не існують');
+                }
+            }
+
             $blocks = $this->input('content_blocks', []);
 
             foreach ($blocks as $index => $block) {
