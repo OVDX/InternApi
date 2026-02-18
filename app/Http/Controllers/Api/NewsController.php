@@ -7,14 +7,12 @@ use App\Http\Controllers\OpenApiSpec;
 use App\Http\Requests\StoreNewsRequest;
 use App\Http\Requests\UpdateNewsRequest;
 use App\Http\Resources\NewsResource;
-use App\Models\ContentBlock;
 use App\Models\News;
-use App\Services\NewsBlockService;
+use App\Services\NewsService;
 use App\Traits\ApiResponse;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use OpenApi\Attributes as OA;
 
 class NewsController extends Controller
@@ -22,7 +20,7 @@ class NewsController extends Controller
     use ApiResponse;
 
     public function __construct(
-        private NewsBlockService $newsBlockService
+        private NewsService $newsService
     ) {}
 
     #[OA\Get(
@@ -38,8 +36,8 @@ class NewsController extends Controller
                 required: false,
                 schema: new OA\Schema(
                     type: 'string',
-                    enum: ['id', 'title', 'created_at', 'updated_at', 'published_at'],
-                    default: 'created_at'
+                    default: 'created_at',
+                    enum: ['id', 'title', 'created_at', 'updated_at', 'published_at']
                 )
             ),
             new OA\QueryParameter(
@@ -102,151 +100,49 @@ class NewsController extends Controller
 
     #[OA\Post(
         path: '/api/news',
-        description: 'Створити нову новину з контентними блоками',
+        summary: 'Створити новину',
         security: [['sanctum' => []]],
+        tags: [OpenApiSpec::TAG_NEWS],
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\MediaType(
                 mediaType: 'multipart/form-data',
-                schema: new OA\Schema(
-                    required: ['title', 'short_description', 'is_published'],
-                    properties: [
-                        new OA\Property(property: 'title', type: 'string', example: 'Нова технологія'),
-                        new OA\Property(property: 'image', type: 'string', format: 'binary', nullable: true),
-                        new OA\Property(property: 'short_description', type: 'string', example: 'Опис'),
-                        new OA\Property(property: 'is_published', type: 'boolean', example: true),
-
-
-                        new OA\Property(
-                            property: 'content_blocks[0][type]',
-                            type: 'string',
-                            enum: ['text', 'image', 'text_image_right', 'text_image_left'],
-                            example: 'text',
-                            nullable: true
-                        ),
-                        new OA\Property(
-                            property: 'content_blocks[0][order]',
-                            type: 'integer',
-                            example: 1,
-                            nullable: true
-                        ),
-                        new OA\Property(
-                            property: 'content_blocks[0][text_content]',
-                            type: 'string',
-                            example: 'Оновлений текст блоку',
-                            nullable: true
-                        ),
-                        new OA\Property(
-                            property: 'content_blocks[0][image]',
-                            description: 'Нове зображення для блоку',
-                            type: 'string',
-                            format: 'binary',
-                            nullable: true
-                        ),
-
-                        // Другий блок (створення нового)
-                        new OA\Property(
-                            property: 'content_blocks[1][type]',
-                            type: 'string',
-                            enum: ['text', 'image', 'text_image_right', 'text_image_left'],
-                            example: 'image',
-                            nullable: true
-                        ),
-                        new OA\Property(
-                            property: 'content_blocks[1][order]',
-                            type: 'integer',
-                            example: 2,
-                            nullable: true
-                        ),
-                        new OA\Property(
-                            property: 'content_blocks[1][text_content]',
-                            type: 'string',
-                            example: 'Оновлений текст блоку',
-                            nullable: true
-                        ),
-                        new OA\Property(
-                            property: 'content_blocks[1][image]',
-                            type: 'string',
-                            format: 'binary',
-                            nullable: true
-                        ),
-
-                        new OA\Property(
-                            property: 'content_blocks[2][type]',
-                            type: 'string',
-                            enum: ['text', 'image', 'text_image_right', 'text_image_left'],
-                            example: 'text_image_right',
-                            nullable: true
-                        ),
-                        new OA\Property(
-                            property: 'content_blocks[2][order]',
-                            type: 'integer',
-                            example: 3,
-                            nullable: true
-                        ),
-                        new OA\Property(
-                            property: 'content_blocks[2][text_content]',
-                            type: 'string',
-                            example: 'Текст з картинкою',
-                            nullable: true
-                        ),
-                        new OA\Property(
-                            property: 'content_blocks[2][image]',
-                            type: 'string',
-                            format: 'binary',
-                            nullable: true
-                        ),
-                    ]
-                )
+                schema: new OA\Schema(ref: '#/components/schemas/NewsStoreRequest')
             )
         ),
-        tags: [OpenApiSpec::TAG_NEWS],
         responses: [
-            new OA\Response(response: 201, description: 'Новину створено'),
+            new OA\Response(response: 201, description: 'Created'),
             new OA\Response(response: 422, description: 'Validation error'),
         ]
     )]
-
     public function store(StoreNewsRequest $request)
     {
+        $uploadedFiles = [];
         DB::beginTransaction();
 
         try {
-            // Створення новини
+            $mainImage = null;
+            if ($request->hasFile('image')) {
+                $mainImage = $request->file('image')->store('news', 'public');
+                $uploadedFiles[] = $mainImage;
+            }
+
             $news = News::create([
                 'user_id' => $request->user()->id,
                 'title' => $request->title,
-                'image' => $request->hasFile('image')
-                    ? $request->file('image')->store('news', 'public')
-                    : null,
+                'image' => $mainImage,
                 'short_description' => $request->short_description,
                 'is_published' => $request->boolean('is_published'),
                 'published_at' => $request->boolean('is_published') ? now() : null,
             ]);
 
-            // Створення блоків, якщо є
             if ($request->has('content_blocks')) {
-                $blocks = $request->input('content_blocks');
-
-                // АВТОМАТИЧНА ПЕРЕНУМЕРАЦІЯ: Сортуємо по order
-                usort($blocks, fn($a, $b) => ($a['order'] ?? 0) <=> ($b['order'] ?? 0));
-
-                // Створюємо блоки з послідовною нумерацією
-                foreach ($blocks as $index => $blockData) {
-                    $imageUrl = null;
-
-                    if ($request->hasFile("content_blocks.{$index}.image")) {
-                        $imageUrl = $request->file("content_blocks.{$index}.image")
-                            ->store('content_blocks', 'public');
-                    }
-
-                    $news->contentBlocks()->create([
-                        'type' => $blockData['type'],
-                        'text_content' => $blockData['text_content'] ?? null,
-                        'image_url' => $imageUrl,
-                        'order' => $index + 1, // ← Автоматично: 1, 2, 3, 4...
-                    ]);
-                }
+                $this->newsService->processContentBlocks(
+                    $news,
+                    $request->input('content_blocks'),
+                    $request,
+                    $uploadedFiles
+                );
             }
 
             DB::commit();
@@ -258,12 +154,10 @@ class NewsController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+            $this->newsService->cleanupFiles($uploadedFiles);
             return $this->errorResponse('Помилка при створенні новини', 500, $e->getMessage());
         }
     }
-
-
-
 
     #[OA\Get(
         path: '/api/news/{id}',
@@ -307,144 +201,25 @@ class NewsController extends Controller
 
     #[OA\Post(
         path: '/api/news/{id}',
-        description: 'Оновити новину з контентними блоками. Блоки, які не передані в запиті, будуть видалені',
+        summary: 'Оновити новину',
         security: [['sanctum' => []]],
         requestBody: new OA\RequestBody(
-            required: true,
             content: new OA\MediaType(
                 mediaType: 'multipart/form-data',
-                schema: new OA\Schema(
-                    properties: [
-                        new OA\Property(property: 'title', type: 'string', example: 'Оновлена назва', nullable: true),
-                        new OA\Property(property: 'image', description: 'Нове головне зображення', type: 'string', format: 'binary', nullable: true),
-                        new OA\Property(property: 'short_description', type: 'string', example: 'Оновлений опис', nullable: true),
-
-                        // Перший блок (оновлення існуючого)
-                        new OA\Property(
-                            property: 'content_blocks[0][id]',
-                            description: 'ID існуючого блоку для оновлення (якщо немає - створюється новий)',
-                            type: 'integer',
-                            example: 5,
-                            nullable: true
-                        ),
-                        new OA\Property(
-                            property: 'content_blocks[0][type]',
-                            type: 'string',
-                            enum: ['text', 'image', 'text_image_right', 'text_image_left'],
-                            example: 'text',
-                            nullable: true
-                        ),
-                        new OA\Property(
-                            property: 'content_blocks[0][order]',
-                            type: 'integer',
-                            example: 1,
-                            nullable: true
-                        ),
-                        new OA\Property(
-                            property: 'content_blocks[0][text_content]',
-                            type: 'string',
-                            example: 'Оновлений текст блоку',
-                            nullable: true
-                        ),
-                        new OA\Property(
-                            property: 'content_blocks[0][image]',
-                            description: 'Нове зображення для блоку',
-                            type: 'string',
-                            format: 'binary',
-                            nullable: true
-                        ),
-
-                        new OA\Property(
-                            property: 'content_blocks[1][id]',
-                            description: 'ID існуючого блоку для оновлення (якщо немає - створюється новий)',
-                            type: 'integer',
-                            example: 5,
-                            nullable: true
-                        ),
-                        new OA\Property(
-                            property: 'content_blocks[1][type]',
-                            type: 'string',
-                            enum: ['text', 'image', 'text_image_right', 'text_image_left'],
-                            example: 'image',
-                            nullable: true
-                        ),
-                        new OA\Property(
-                            property: 'content_blocks[1][order]',
-                            type: 'integer',
-                            example: 2,
-                            nullable: true
-                        ),
-                        new OA\Property(
-                            property: 'content_blocks[1][text_content]',
-                            type: 'string',
-                            example: 'Оновлений текст блоку',
-                            nullable: true
-                        ),
-                        new OA\Property(
-                            property: 'content_blocks[1][image]',
-                            type: 'string',
-                            format: 'binary',
-                            nullable: true
-                        ),
-
-                        new OA\Property(
-                            property: 'content_blocks[2][id]',
-                            type: 'integer',
-                            example: 8,
-                            nullable: true
-                        ),
-                        new OA\Property(
-                            property: 'content_blocks[2][type]',
-                            type: 'string',
-                            enum: ['text', 'image', 'text_image_right', 'text_image_left'],
-                            example: 'text_image_right',
-                            nullable: true
-                        ),
-                        new OA\Property(
-                            property: 'content_blocks[2][order]',
-                            type: 'integer',
-                            example: 3,
-                            nullable: true
-                        ),
-                        new OA\Property(
-                            property: 'content_blocks[2][text_content]',
-                            type: 'string',
-                            example: 'Текст з картинкою',
-                            nullable: true
-                        ),
-                        new OA\Property(
-                            property: 'content_blocks[2][image]',
-                            type: 'string',
-                            format: 'binary',
-                            nullable: true
-                        ),
-                    ]
-                )
+                schema: new OA\Schema(ref: '#/components/schemas/NewsUpdateRequest')
             )
         ),
         tags: [OpenApiSpec::TAG_NEWS],
         parameters: [new OA\PathParameter(name: 'id', required: true, schema: new OA\Schema(type: 'integer'))],
         responses: [
-            new OA\Response(
-                response: 200,
-                description: 'Новину оновлено',
-                content: new OA\JsonContent(ref: '#/components/schemas/SuccessNewsResponse')
-            ),
-            new OA\Response(
-                response: 401,
-                description: 'Unauthorized',
-                content: new OA\JsonContent(ref: '#/components/schemas/UnauthenticatedResponse')
-            ),
-            new OA\Response(
-                response: 404,
-                description: 'Не знайдено',
-                content: new OA\JsonContent(ref: '#/components/schemas/ErrorResponse')
-            ),
+            new OA\Response(response: 200, description: 'Updated'),
+            new OA\Response(response: 404, description: 'Not Found'),
             new OA\Response(response: 422, description: 'Validation error'),
         ]
     )]
     public function update(UpdateNewsRequest $request, int $id)
     {
+        $uploadedFiles = [];
         DB::beginTransaction();
 
         try {
@@ -453,99 +228,22 @@ class NewsController extends Controller
             $data = $request->only(['title', 'short_description']);
 
             if ($request->hasFile('image')) {
-                if ($news->image) {
-                    Storage::disk('public')->delete($news->image);
-                }
-                $data['image'] = $request->file('image')->store('news', 'public');
+                $oldImage = $news->image;
+                $newImage = $request->file('image')->store('news', 'public');
+                $uploadedFiles[] = $newImage;
+                $data['image'] = $newImage;
+                $this->newsService->deleteImage($oldImage);
             }
 
             $news->update($data);
 
             if ($request->has('content_blocks')) {
-                $blocks = $request->input('content_blocks');
-
-                usort($blocks, fn($a, $b) => ($a['order'] ?? 0) <=> ($b['order'] ?? 0));
-
-                $existingBlockIds = [];
-
-                foreach ($blocks as $index => $blockData) {
-                    $correctOrder = $index + 1;
-
-                    if (isset($blockData['id'])) {
-                        $block = $news->contentBlocks()->find($blockData['id']);
-
-                        if ($block) {
-                            $type = $blockData['type'];
-
-                            $updateData = [
-                                'type' => $type,
-                                'order' => $correctOrder,
-                            ];
-
-                            if ($type === 'text') {
-                                $updateData['text_content'] = $blockData['text_content'] ?? null;
-
-                                if ($block->image_url) {
-                                    Storage::disk('public')->delete($block->image_url);
-                                }
-                                $updateData['image_url'] = null;
-
-                            } elseif ($type === 'image') {
-                                $updateData['text_content'] = null;
-
-                                if ($request->hasFile("content_blocks.{$index}.image")) {
-                                    if ($block->image_url) {
-                                        Storage::disk('public')->delete($block->image_url);
-                                    }
-                                    $updateData['image_url'] = $request->file("content_blocks.{$index}.image")
-                                        ->store('content_blocks', 'public');
-                                }
-
-                            } elseif (in_array($type, ['text_image_right', 'text_image_left'])) {
-                                $updateData['text_content'] = $blockData['text_content'] ?? null;
-
-                                if ($request->hasFile("content_blocks.{$index}.image")) {
-                                    if ($block->image_url) {
-                                        Storage::disk('public')->delete($block->image_url);
-                                    }
-                                    $updateData['image_url'] = $request->file("content_blocks.{$index}.image")
-                                        ->store('content_blocks', 'public');
-                                }
-                            }
-
-                            $block->update($updateData);
-                            $existingBlockIds[] = $block->id;
-                        }
-                    } else {
-                        $type = $blockData['type'];
-                        $imageUrl = null;
-
-                        if ($request->hasFile("content_blocks.{$index}.image")) {
-                            $imageUrl = $request->file("content_blocks.{$index}.image")
-                                ->store('content_blocks', 'public');
-                        }
-
-                        $newBlock = $news->contentBlocks()->create([
-                            'type' => $type,
-                            'text_content' => in_array($type, ['text', 'text_image_right', 'text_image_left'])
-                                ? ($blockData['text_content'] ?? null)
-                                : null,
-                            'image_url' => $imageUrl,
-                            'order' => $correctOrder,
-                        ]);
-
-                        $existingBlockIds[] = $newBlock->id;
-                    }
-                }
-
-                $blocksToDelete = $news->contentBlocks()->whereNotIn('id', $existingBlockIds)->get();
-
-                foreach ($blocksToDelete as $block) {
-                    if ($block->image_url) {
-                        Storage::disk('public')->delete($block->image_url);
-                    }
-                    $block->delete();
-                }
+                $this->newsService->processContentBlocks(
+                    $news,
+                    $request->input('content_blocks'),
+                    $request,
+                    $uploadedFiles
+                );
             }
 
             DB::commit();
@@ -556,17 +254,15 @@ class NewsController extends Controller
 
         } catch (ModelNotFoundException $e) {
             DB::rollBack();
+            $this->newsService->cleanupFiles($uploadedFiles);
             return $this->notFoundResponse('Новину не знайдено');
+
         } catch (\Exception $e) {
             DB::rollBack();
+            $this->newsService->cleanupFiles($uploadedFiles);
             return $this->errorResponse('Помилка при оновленні новини', 500, $e->getMessage());
         }
     }
-
-
-
-
-
 
     #[OA\Delete(
         path: '/api/news/{id}',
@@ -600,17 +296,12 @@ class NewsController extends Controller
             $news = News::where('user_id', auth()->id())->findOrFail($id);
 
             foreach ($news->contentBlocks as $block) {
-                if ($block->image_url) {
-                    Storage::disk('public')->delete($block->image_url);
-                }
+                $this->newsService->deleteImage($block->image_url);
             }
 
-            if ($news->image) {
-                Storage::disk('public')->delete($news->image);
-            }
+            $this->newsService->deleteImage($news->image);
 
             $news->delete();
-
             DB::commit();
 
             return $this->successResponse(['message' => 'Новину видалено']);
@@ -623,7 +314,6 @@ class NewsController extends Controller
             return $this->errorResponse('Помилка при видаленні новини', 500, $e->getMessage());
         }
     }
-
 
     #[OA\Patch(
         path: '/api/news/{id}/toggle-status',

@@ -15,15 +15,15 @@ class StoreNewsRequest extends FormRequest
     {
         return [
             'title' => 'required|string|max:255',
-            'image' => 'nullable|image|max:2048',
+            'image' => 'nullable|image|mimes:jpeg,jpg,png|max:2048',
             'short_description' => 'required|string',
             'is_published' => 'required|in:true,false,0,1',
 
-            'content_blocks' => 'nullable|array',
+            'content_blocks' => 'nullable|array|max:50',
             'content_blocks.*.type' => 'required|in:text,image,text_image_right,text_image_left',
-            'content_blocks.*.order' => 'required|integer|min:1|distinct', // order має бути унікальним в межах масиву
+            'content_blocks.*.order' => 'required|integer|min:1|distinct',
             'content_blocks.*.text_content' => 'nullable|string',
-            'content_blocks.*.image' => 'nullable|image|max:2048',
+            'content_blocks.*.image' => 'nullable|image|mimes:jpeg,jpg,png|max:2048',
         ];
     }
 
@@ -33,11 +33,13 @@ class StoreNewsRequest extends FormRequest
             'title.required' => 'Назва новини є обов\'язковою',
             'title.max' => 'Назва не може перевищувати 255 символів',
             'image.image' => 'Файл повинен бути зображенням',
+            'image.mimes' => 'Підтримуються тільки форматі: jpeg, jpg, png',
             'image.max' => 'Розмір зображення не може перевищувати 2MB',
             'short_description.required' => 'Короткий опис є обов\'язковим',
             'is_published.required' => 'Статус публікації є обов\'язковим',
-            'is_published.boolean' => 'Статус публікації має бути true або false',
+            'is_published.in' => 'Статус публікації має бути true або false',
 
+            'content_blocks.max' => 'Максимальна кількість блоків - 50',
             'content_blocks.*.type.required' => 'Тип блоку є обов\'язковим',
             'content_blocks.*.type.in' => 'Тип має бути: text, image, text_image_right, text_image_left',
             'content_blocks.*.order.required' => 'Порядковий номер є обов\'язковим',
@@ -45,6 +47,7 @@ class StoreNewsRequest extends FormRequest
             'content_blocks.*.order.min' => 'Порядковий номер має бути більше 0',
             'content_blocks.*.order.distinct' => 'Порядкові номери блоків мають бути унікальними',
             'content_blocks.*.image.image' => 'Файл повинен бути зображенням',
+            'content_blocks.*.image.mimes' => 'Підтримуються тільки форматі: jpeg, jpg, png',
             'content_blocks.*.image.max' => 'Розмір зображення не може перевищувати 2MB',
         ];
     }
@@ -57,8 +60,7 @@ class StoreNewsRequest extends FormRequest
             foreach ($blocks as $index => $block) {
                 $type = $block['type'] ?? null;
 
-                // Перевірка: text блок повинен мати text_content
-                if ($type === 'text' && empty($block['text_content'])) {
+                if ($type === 'text' && empty(trim($block['text_content'] ?? ''))) {
                     $validator->errors()->add(
                         "content_blocks.{$index}.text_content",
                         'Текст є обов\'язковим для типу text'
@@ -73,7 +75,7 @@ class StoreNewsRequest extends FormRequest
                 }
 
                 if (in_array($type, ['text_image_right', 'text_image_left'])) {
-                    if (empty($block['text_content'])) {
+                    if (empty(trim($block['text_content'] ?? ''))) {
                         $validator->errors()->add(
                             "content_blocks.{$index}.text_content",
                             'Текст є обов\'язковим для цього типу блоку'

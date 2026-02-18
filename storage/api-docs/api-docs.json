@@ -211,280 +211,6 @@
                 ]
             }
         },
-        "/api/news/{newsId}/blocks": {
-            "post": {
-                "tags": [
-                    "News Management"
-                ],
-                "description": "Додати контентний блок до новини",
-                "operationId": "58b93e02dfe7eb99f70be5159f5687d0",
-                "parameters": [
-                    {
-                        "name": "newsId",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        },
-                        "example": 1
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "multipart/form-data": {
-                            "schema": {
-                                "required": [
-                                    "type"
-                                ],
-                                "properties": {
-                                    "type": {
-                                        "type": "string",
-                                        "enum": [
-                                            "text",
-                                            "image",
-                                            "text_image_right",
-                                            "text_image_left"
-                                        ],
-                                        "example": "text"
-                                    },
-                                    "order": {
-                                        "description": "Якщо не вказано — додається в кінець",
-                                        "type": "integer",
-                                        "example": 1,
-                                        "nullable": true
-                                    },
-                                    "text_content": {
-                                        "description": "Обов'язково для text, text_image_right, text_image_left",
-                                        "type": "string",
-                                        "example": "Текст блоку",
-                                        "nullable": true
-                                    },
-                                    "image": {
-                                        "description": "Обов'язково для image, text_image_right, text_image_left",
-                                        "type": "string",
-                                        "format": "binary",
-                                        "nullable": true
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "201": {
-                        "description": "Блок створено",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/SuccessContentBlockResponse"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/UnauthenticatedResponse"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Новину не знайдено",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "Validation error"
-                    }
-                },
-                "security": [
-                    {
-                        "sanctum": []
-                    }
-                ]
-            }
-        },
-        "/api/news/{newsId}/blocks/{blockId}": {
-            "post": {
-                "tags": [
-                    "News Management"
-                ],
-                "description": "Оновити контентний блок новини",
-                "operationId": "34261b97c8b6ed3891c7aa4674c91aa7",
-                "parameters": [
-                    {
-                        "name": "newsId",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        },
-                        "example": 1
-                    },
-                    {
-                        "name": "blockId",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        },
-                        "example": 3
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "multipart/form-data": {
-                            "schema": {
-                                "properties": {
-                                    "type": {
-                                        "type": "string",
-                                        "enum": [
-                                            "text",
-                                            "image",
-                                            "text_image_right",
-                                            "text_image_left"
-                                        ],
-                                        "example": "text"
-                                    },
-                                    "order": {
-                                        "description": "Блоки поміняються місцями",
-                                        "type": "integer",
-                                        "example": 2,
-                                        "nullable": true
-                                    },
-                                    "text_content": {
-                                        "type": "string",
-                                        "example": "Оновлений текст",
-                                        "nullable": true
-                                    },
-                                    "image": {
-                                        "type": "string",
-                                        "format": "binary",
-                                        "nullable": true
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Блок оновлено",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/SuccessContentBlockResponse"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/UnauthenticatedResponse"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Новину або блок не знайдено",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "Validation error"
-                    }
-                },
-                "security": [
-                    {
-                        "sanctum": []
-                    }
-                ]
-            },
-            "delete": {
-                "tags": [
-                    "News Management"
-                ],
-                "description": "Видалити контентний блок новини",
-                "operationId": "2dbd78949f92fef2f02e4a3df25048b2",
-                "parameters": [
-                    {
-                        "name": "newsId",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        },
-                        "example": 1
-                    },
-                    {
-                        "name": "blockId",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        },
-                        "example": 3
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Блок видалено",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/DeletedResponse"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/UnauthenticatedResponse"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Новину або блок не знайдено",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "sanctum": []
-                    }
-                ]
-            }
-        },
         "/api/news": {
             "get": {
                 "tags": [
@@ -579,124 +305,21 @@
                 "tags": [
                     "News Management"
                 ],
-                "description": "Створити нову новину з контентними блоками",
+                "summary": "Створити новину",
                 "operationId": "a3204d8708e05a4132ae88fec0ac3fe8",
                 "requestBody": {
                     "required": true,
                     "content": {
                         "multipart/form-data": {
                             "schema": {
-                                "required": [
-                                    "title",
-                                    "short_description",
-                                    "is_published"
-                                ],
-                                "properties": {
-                                    "title": {
-                                        "type": "string",
-                                        "example": "Нова технологія"
-                                    },
-                                    "image": {
-                                        "type": "string",
-                                        "format": "binary",
-                                        "nullable": true
-                                    },
-                                    "short_description": {
-                                        "type": "string",
-                                        "example": "Опис"
-                                    },
-                                    "is_published": {
-                                        "type": "boolean",
-                                        "example": true
-                                    },
-                                    "content_blocks[0][type]": {
-                                        "type": "string",
-                                        "enum": [
-                                            "text",
-                                            "image",
-                                            "text_image_right",
-                                            "text_image_left"
-                                        ],
-                                        "example": "text",
-                                        "nullable": true
-                                    },
-                                    "content_blocks[0][order]": {
-                                        "type": "integer",
-                                        "example": 1,
-                                        "nullable": true
-                                    },
-                                    "content_blocks[0][text_content]": {
-                                        "type": "string",
-                                        "example": "Оновлений текст блоку",
-                                        "nullable": true
-                                    },
-                                    "content_blocks[0][image]": {
-                                        "description": "Нове зображення для блоку",
-                                        "type": "string",
-                                        "format": "binary",
-                                        "nullable": true
-                                    },
-                                    "content_blocks[1][type]": {
-                                        "type": "string",
-                                        "enum": [
-                                            "text",
-                                            "image",
-                                            "text_image_right",
-                                            "text_image_left"
-                                        ],
-                                        "example": "image",
-                                        "nullable": true
-                                    },
-                                    "content_blocks[1][order]": {
-                                        "type": "integer",
-                                        "example": 2,
-                                        "nullable": true
-                                    },
-                                    "content_blocks[1][text_content]": {
-                                        "type": "string",
-                                        "example": "Оновлений текст блоку",
-                                        "nullable": true
-                                    },
-                                    "content_blocks[1][image]": {
-                                        "type": "string",
-                                        "format": "binary",
-                                        "nullable": true
-                                    },
-                                    "content_blocks[2][type]": {
-                                        "type": "string",
-                                        "enum": [
-                                            "text",
-                                            "image",
-                                            "text_image_right",
-                                            "text_image_left"
-                                        ],
-                                        "example": "text_image_right",
-                                        "nullable": true
-                                    },
-                                    "content_blocks[2][order]": {
-                                        "type": "integer",
-                                        "example": 3,
-                                        "nullable": true
-                                    },
-                                    "content_blocks[2][text_content]": {
-                                        "type": "string",
-                                        "example": "Текст з картинкою",
-                                        "nullable": true
-                                    },
-                                    "content_blocks[2][image]": {
-                                        "type": "string",
-                                        "format": "binary",
-                                        "nullable": true
-                                    }
-                                },
-                                "type": "object"
+                                "$ref": "#/components/schemas/NewsStoreRequest"
                             }
                         }
                     }
                 },
                 "responses": {
                     "201": {
-                        "description": "Новину створено"
+                        "description": "Created"
                     },
                     "422": {
                         "description": "Validation error"
@@ -768,7 +391,7 @@
                 "tags": [
                     "News Management"
                 ],
-                "description": "Оновити новину з контентними блоками. Блоки, які не передані в запиті, будуть видалені",
+                "summary": "Оновити новину",
                 "operationId": "53a26e27a0394f32e2a03f7a969bc40c",
                 "parameters": [
                     {
@@ -781,159 +404,20 @@
                     }
                 ],
                 "requestBody": {
-                    "required": true,
                     "content": {
                         "multipart/form-data": {
                             "schema": {
-                                "properties": {
-                                    "title": {
-                                        "type": "string",
-                                        "example": "Оновлена назва",
-                                        "nullable": true
-                                    },
-                                    "image": {
-                                        "description": "Нове головне зображення",
-                                        "type": "string",
-                                        "format": "binary",
-                                        "nullable": true
-                                    },
-                                    "short_description": {
-                                        "type": "string",
-                                        "example": "Оновлений опис",
-                                        "nullable": true
-                                    },
-                                    "content_blocks[0][id]": {
-                                        "description": "ID існуючого блоку для оновлення (якщо немає - створюється новий)",
-                                        "type": "integer",
-                                        "example": 5,
-                                        "nullable": true
-                                    },
-                                    "content_blocks[0][type]": {
-                                        "type": "string",
-                                        "enum": [
-                                            "text",
-                                            "image",
-                                            "text_image_right",
-                                            "text_image_left"
-                                        ],
-                                        "example": "text",
-                                        "nullable": true
-                                    },
-                                    "content_blocks[0][order]": {
-                                        "type": "integer",
-                                        "example": 1,
-                                        "nullable": true
-                                    },
-                                    "content_blocks[0][text_content]": {
-                                        "type": "string",
-                                        "example": "Оновлений текст блоку",
-                                        "nullable": true
-                                    },
-                                    "content_blocks[0][image]": {
-                                        "description": "Нове зображення для блоку",
-                                        "type": "string",
-                                        "format": "binary",
-                                        "nullable": true
-                                    },
-                                    "content_blocks[1][id]": {
-                                        "description": "ID існуючого блоку для оновлення (якщо немає - створюється новий)",
-                                        "type": "integer",
-                                        "example": 5,
-                                        "nullable": true
-                                    },
-                                    "content_blocks[1][type]": {
-                                        "type": "string",
-                                        "enum": [
-                                            "text",
-                                            "image",
-                                            "text_image_right",
-                                            "text_image_left"
-                                        ],
-                                        "example": "image",
-                                        "nullable": true
-                                    },
-                                    "content_blocks[1][order]": {
-                                        "type": "integer",
-                                        "example": 2,
-                                        "nullable": true
-                                    },
-                                    "content_blocks[1][text_content]": {
-                                        "type": "string",
-                                        "example": "Оновлений текст блоку",
-                                        "nullable": true
-                                    },
-                                    "content_blocks[1][image]": {
-                                        "type": "string",
-                                        "format": "binary",
-                                        "nullable": true
-                                    },
-                                    "content_blocks[2][id]": {
-                                        "type": "integer",
-                                        "example": 8,
-                                        "nullable": true
-                                    },
-                                    "content_blocks[2][type]": {
-                                        "type": "string",
-                                        "enum": [
-                                            "text",
-                                            "image",
-                                            "text_image_right",
-                                            "text_image_left"
-                                        ],
-                                        "example": "text_image_right",
-                                        "nullable": true
-                                    },
-                                    "content_blocks[2][order]": {
-                                        "type": "integer",
-                                        "example": 3,
-                                        "nullable": true
-                                    },
-                                    "content_blocks[2][text_content]": {
-                                        "type": "string",
-                                        "example": "Текст з картинкою",
-                                        "nullable": true
-                                    },
-                                    "content_blocks[2][image]": {
-                                        "type": "string",
-                                        "format": "binary",
-                                        "nullable": true
-                                    }
-                                },
-                                "type": "object"
+                                "$ref": "#/components/schemas/NewsUpdateRequest"
                             }
                         }
                     }
                 },
                 "responses": {
                     "200": {
-                        "description": "Новину оновлено",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/SuccessNewsResponse"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/UnauthenticatedResponse"
-                                }
-                            }
-                        }
+                        "description": "Updated"
                     },
                     "404": {
-                        "description": "Не знайдено",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
-                                }
-                            }
-                        }
+                        "description": "Not Found"
                     },
                     "422": {
                         "description": "Validation error"
@@ -1859,6 +1343,224 @@
                             }
                         },
                         "type": "object"
+                    }
+                },
+                "type": "object"
+            },
+            "NewsStoreRequest": {
+                "required": [
+                    "title",
+                    "short_description",
+                    "is_published"
+                ],
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "example": "Нова технологія"
+                    },
+                    "image": {
+                        "type": "string",
+                        "format": "binary",
+                        "nullable": true
+                    },
+                    "short_description": {
+                        "type": "string",
+                        "example": "Опис"
+                    },
+                    "is_published": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "content_blocks[0][type]": {
+                        "type": "string",
+                        "enum": [
+                            "text",
+                            "image",
+                            "text_image_right",
+                            "text_image_left"
+                        ],
+                        "example": "text",
+                        "nullable": true
+                    },
+                    "content_blocks[0][order]": {
+                        "type": "integer",
+                        "example": 1,
+                        "nullable": true
+                    },
+                    "content_blocks[0][text_content]": {
+                        "type": "string",
+                        "example": "Текст блоку",
+                        "nullable": true
+                    },
+                    "content_blocks[0][image]": {
+                        "type": "string",
+                        "format": "binary",
+                        "nullable": true
+                    },
+                    "content_blocks[1][type]": {
+                        "type": "string",
+                        "enum": [
+                            "text",
+                            "image",
+                            "text_image_right",
+                            "text_image_left"
+                        ],
+                        "example": "text",
+                        "nullable": true
+                    },
+                    "content_blocks[1][order]": {
+                        "type": "integer",
+                        "example": 1,
+                        "nullable": true
+                    },
+                    "content_blocks[1][text_content]": {
+                        "type": "string",
+                        "example": "Текст блоку",
+                        "nullable": true
+                    },
+                    "content_blocks[1][image]": {
+                        "type": "string",
+                        "format": "binary",
+                        "nullable": true
+                    },
+                    "content_blocks[2][type]": {
+                        "type": "string",
+                        "enum": [
+                            "text",
+                            "image",
+                            "text_image_right",
+                            "text_image_left"
+                        ],
+                        "example": "text",
+                        "nullable": true
+                    },
+                    "content_blocks[2][order]": {
+                        "type": "integer",
+                        "example": 1,
+                        "nullable": true
+                    },
+                    "content_blocks[2][text_content]": {
+                        "type": "string",
+                        "example": "Текст блоку",
+                        "nullable": true
+                    },
+                    "content_blocks[2][image]": {
+                        "type": "string",
+                        "format": "binary",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "NewsUpdateRequest": {
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "example": "Оновлена назва",
+                        "nullable": true
+                    },
+                    "image": {
+                        "type": "string",
+                        "format": "binary",
+                        "nullable": true
+                    },
+                    "short_description": {
+                        "type": "string",
+                        "example": "Оновлений опис",
+                        "nullable": true
+                    },
+                    "content_blocks[0][id]": {
+                        "type": "integer",
+                        "example": 5,
+                        "nullable": true
+                    },
+                    "content_blocks[0][type]": {
+                        "type": "string",
+                        "enum": [
+                            "text",
+                            "image",
+                            "text_image_right",
+                            "text_image_left"
+                        ],
+                        "example": "text",
+                        "nullable": true
+                    },
+                    "content_blocks[0][order]": {
+                        "type": "integer",
+                        "example": 1,
+                        "nullable": true
+                    },
+                    "content_blocks[0][text_content]": {
+                        "type": "string",
+                        "example": "Текст",
+                        "nullable": true
+                    },
+                    "content_blocks[0][image]": {
+                        "type": "string",
+                        "format": "binary",
+                        "nullable": true
+                    },
+                    "content_blocks[1][id]": {
+                        "type": "integer",
+                        "example": 5,
+                        "nullable": true
+                    },
+                    "content_blocks[1][type]": {
+                        "type": "string",
+                        "enum": [
+                            "text",
+                            "image",
+                            "text_image_right",
+                            "text_image_left"
+                        ],
+                        "example": "text",
+                        "nullable": true
+                    },
+                    "content_blocks[1][order]": {
+                        "type": "integer",
+                        "example": 1,
+                        "nullable": true
+                    },
+                    "content_blocks[1][text_content]": {
+                        "type": "string",
+                        "example": "Текст",
+                        "nullable": true
+                    },
+                    "content_blocks[1][image]": {
+                        "type": "string",
+                        "format": "binary",
+                        "nullable": true
+                    },
+                    "content_blocks[2][id]": {
+                        "type": "integer",
+                        "example": 5,
+                        "nullable": true
+                    },
+                    "content_blocks[2][type]": {
+                        "type": "string",
+                        "enum": [
+                            "text",
+                            "image",
+                            "text_image_right",
+                            "text_image_left"
+                        ],
+                        "example": "text",
+                        "nullable": true
+                    },
+                    "content_blocks[2][order]": {
+                        "type": "integer",
+                        "example": 1,
+                        "nullable": true
+                    },
+                    "content_blocks[2][text_content]": {
+                        "type": "string",
+                        "example": "Текст",
+                        "nullable": true
+                    },
+                    "content_blocks[2][image]": {
+                        "type": "string",
+                        "format": "binary",
+                        "nullable": true
                     }
                 },
                 "type": "object"
