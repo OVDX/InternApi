@@ -28,6 +28,12 @@ use OpenApi\Attributes as OA;
             type: 'array',
             items: new OA\Items(ref: '#/components/schemas/ContentBlock')
         ),
+        new OA\Property(
+            property: 'categories',
+            description: 'Категорії новини',
+            type: 'array',
+            items: new OA\Items(ref: '#/components/schemas/Category')
+        ),
     ]
 )]
 class News extends Model
@@ -52,6 +58,13 @@ class News extends Model
         return $this->hasMany(ContentBlock::class)->orderBy('order');
     }
 
+
+    public function categories()
+    {
+        return $this->belongsToMany(Category::class, 'category_news')
+            ->withTimestamps()
+            ->orderBy('position');
+    }
 
     public function scopePublished($query)
     {
