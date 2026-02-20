@@ -130,13 +130,20 @@ Content-Type: application/json
 }
 ```
 
-### Admin pannel categories
+### Admin panel categories
 
 ```
 http://localhost:8000/admin/categories
 ```
 
-### To login as Admin after migrations 
+### To login as Admin after migrations
+```
+email: admin@example.com
+password: password
+```
+
+
+
 
 ### Token usage
 
