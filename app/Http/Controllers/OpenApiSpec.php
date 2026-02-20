@@ -50,5 +50,5 @@ class OpenApiSpec
     public const TAG_NEWS = 'News Management';
     public const TAG_PUBLIC_NEWS = 'Public News';
     public const TAG_PROFILE = 'User Profile';
-    public const TAG_ADMIN_USERS = 'Admin Users';  // ✅ Додай для тегів
+    public const TAG_ADMIN_USERS = 'Admin Users';
 }

@@ -1,5 +1,4 @@
 <?php
-// app/Http/Middleware/SetLocaleFromHeader.php
 
 namespace App\Http\Middleware;
 
