@@ -20,7 +20,6 @@ use OpenApi\Attributes as OA;
             nullable: true
         ),
 
-        // Контентні блоки
         new OA\Property(property: 'content_blocks[0][id]', type: 'integer', example: 5, nullable: true),
         new OA\Property(
             property: 'content_blocks[0][type]',

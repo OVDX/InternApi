@@ -28,7 +28,19 @@ class NewsController extends Controller
         description: 'Отримати список власних новин користувача з пагінацією, пошуком та фільтрацією',
         security: [['sanctum' => []]],
         tags: [OpenApiSpec::TAG_NEWS],
+
         parameters: [
+            new OA\Parameter(
+                name: 'Accept-Language',
+                description: 'Мова для назв категорій',
+                in: 'header',
+                required: false,
+                schema: new OA\Schema(
+                    type: 'string',
+                    default: 'uk',
+                    enum: ['uk', 'en', ]
+                )
+            ),
             new OA\QueryParameter(name: 'search', required: false, schema: new OA\Schema(type: 'string')),
             new OA\QueryParameter(name: 'is_published', required: false, schema: new OA\Schema(type: 'boolean')),
             new OA\QueryParameter(
@@ -43,8 +55,9 @@ class NewsController extends Controller
             new OA\QueryParameter(
                 name: 'sort_order',
                 required: false,
-                schema: new OA\Schema(type: 'string', enum: ['asc', 'desc'], default: 'desc')
+                schema: new OA\Schema(type: 'string', default: 'desc', enum: ['asc', 'desc'])
             ),
+            new OA\QueryParameter(name: 'category_id', required: false, schema: new OA\Schema(description: 'ID категорії для фільтрації', type: 'integer')),
             new OA\QueryParameter(name: 'page', required: false, schema: new OA\Schema(type: 'integer')),
         ],
         responses: [
@@ -63,13 +76,27 @@ class NewsController extends Controller
     public function index(Request $request)
     {
         try {
-            $query = News::with(['contentBlocks', 'user','categories'])
+            $locale = $request->header('Accept-Language', app()->getLocale());
+            $locale = in_array($locale, ['uk', 'en']) ? $locale : 'uk';
+
+            $query = News::with([
+                'contentBlocks',
+                'user',
+                'categories' => function($q) use ($locale) {
+                    $q->withTranslation($locale);
+                }
+            ])
                 ->where('user_id', $request->user()->id);
 
             if ($request->filled('search')) {
                 $query->where(function($q) use ($request) {
                     $q->where('title', 'like', "%{$request->search}%")
                         ->orWhere('short_description', 'like', "%{$request->search}%");
+                });
+            }
+            if ($request->filled('category_id')) {
+                $query->whereHas('categories', function($q) use ($request) {
+                    $q->where('id', $request->category_id);
                 });
             }
 
@@ -110,6 +137,19 @@ class NewsController extends Controller
             )
         ),
         tags: [OpenApiSpec::TAG_NEWS],
+        parameters: [
+            new OA\Parameter(
+                name: 'Accept-Language',
+                description: 'Мова для назв категорій у відповіді',
+                in: 'header',
+                required: false,
+                schema: new OA\Schema(
+                    type: 'string',
+                    default: 'uk',
+                    enum: ['uk', 'en', ]
+                )
+            )
+        ],
         responses: [
             new OA\Response(response: 201, description: 'Created'),
             new OA\Response(response: 422, description: 'Validation error'),
@@ -137,7 +177,9 @@ class NewsController extends Controller
             ]);
 
             if ($request->has('category_ids')) {
-                $news->categories()->sync($request->category_ids);
+                if ($categoryIds = $this->parseCategoryIds($request)) {
+                    $news->categories()->sync($categoryIds);
+                }
             }
 
             if ($request->has('content_blocks')) {
@@ -151,8 +193,19 @@ class NewsController extends Controller
 
             DB::commit();
 
+            $locale = $request->header('Accept-Language', app()->getLocale());
+            $locale = in_array($locale, ['uk', 'en']) ? $locale : 'uk';
+
+            $news->load([
+                'contentBlocks',
+                'user',
+                'categories' => function($q) use ($locale) {
+                    $q->withTranslation($locale);
+                }
+            ]);
+
             return $this->successResponse(
-                NewsResource::make($news->load(['contentBlocks', 'user', 'categories'])),
+                NewsResource::make($news),
                 201
             );
 
@@ -168,7 +221,19 @@ class NewsController extends Controller
         description: 'Отримати деталі новини',
         security: [['sanctum' => []]],
         tags: [OpenApiSpec::TAG_NEWS],
-        parameters: [new OA\PathParameter(name: 'id', required: true, schema: new OA\Schema(type: 'integer'))],
+        parameters: [
+            new OA\Parameter(
+                name: 'Accept-Language',
+                description: 'Мова для назв категорій',
+                in: 'header',
+                required: false,
+                schema: new OA\Schema(
+                    type: 'string',
+                    default: 'uk',
+                    enum: ['uk', 'en', ]
+                )
+            ),
+            new OA\PathParameter(name: 'id', required: true, schema: new OA\Schema(type: 'integer'))],
         responses: [
             new OA\Response(
                 response: 200,
@@ -187,10 +252,19 @@ class NewsController extends Controller
             ),
         ]
     )]
-    public function show(int $id)
+    public function show(Request $request, int $id)
     {
         try {
-            $news = News::with(['contentBlocks', 'user','categories'])
+            $locale = $request->header('Accept-Language', app()->getLocale());
+            $locale = in_array($locale, ['uk', 'en']) ? $locale : 'uk';
+
+            $news = News::with([
+                'contentBlocks',
+                'user',
+                'categories' => function($q) use ($locale) {
+                    $q->withTranslation($locale);
+                }
+            ])
                 ->where('user_id', auth()->id())
                 ->findOrFail($id);
 
@@ -214,7 +288,18 @@ class NewsController extends Controller
             )
         ),
         tags: [OpenApiSpec::TAG_NEWS],
-        parameters: [new OA\PathParameter(name: 'id', required: true, schema: new OA\Schema(type: 'integer'))],
+        parameters: [new OA\Parameter(
+                name: 'Accept-Language',
+                description: 'Мова для назв категорій у відповіді',
+                in: 'header',
+                required: false,
+                schema: new OA\Schema(
+                    type: 'string',
+                    default: 'uk',
+                    enum: ['uk', 'en', ]
+                )
+            ),
+            new OA\PathParameter(name: 'id', required: true, schema: new OA\Schema(type: 'integer'))],
         responses: [
             new OA\Response(response: 200, description: 'Updated'),
             new OA\Response(response: 404, description: 'Not Found'),
@@ -242,7 +327,9 @@ class NewsController extends Controller
             $news->update($data);
 
             if ($request->has('category_ids')) {
-                $news->categories()->sync($request->category_ids);
+                if ($categoryIds = $this->parseCategoryIds($request)) {
+                    $news->categories()->sync($categoryIds);
+                }
             }
 
             if ($request->has('content_blocks')) {
@@ -255,9 +342,19 @@ class NewsController extends Controller
             }
 
             DB::commit();
+            $locale = $request->header('Accept-Language', app()->getLocale());
+            $locale = in_array($locale, ['uk', 'en']) ? $locale : 'uk';
+
+            $news->load([
+                'contentBlocks',
+                'user',
+                'categories' => function($q) use ($locale) {
+                    $q->withTranslation($locale);
+                }
+            ]);
 
             return $this->successResponse(
-                NewsResource::make($news->load(['contentBlocks', 'user','categories'])),
+                NewsResource::make($news)
             );
 
         } catch (ModelNotFoundException $e) {
@@ -328,7 +425,19 @@ class NewsController extends Controller
         description: 'Змінити статус публікації',
         security: [['sanctum' => []]],
         tags: [OpenApiSpec::TAG_NEWS],
-        parameters: [new OA\PathParameter(name: 'id', required: true, schema: new OA\Schema(type: 'integer'))],
+        parameters: [
+            new OA\Parameter(
+                name: 'Accept-Language',
+                description: 'Мова для назв категорій',
+                in: 'header',
+                required: false,
+                schema: new OA\Schema(
+                    type: 'string',
+                    default: 'uk',
+                    enum: ['uk', 'en', ]
+                )
+            ),
+            new OA\PathParameter(name: 'id', required: true, schema: new OA\Schema(type: 'integer'))],
         responses: [
             new OA\Response(
                 response: 200,
@@ -347,10 +456,21 @@ class NewsController extends Controller
             ),
         ]
     )]
-    public function toggleStatus(int $id)
+    public function toggleStatus(Request $request, int $id)
     {
         try {
-            $news = News::where('user_id', auth()->id())->findOrFail($id);
+            $locale = $request->header('Accept-Language', app()->getLocale());
+            $locale = in_array($locale, ['uk', 'en']) ? $locale : 'uk';
+
+            $news = News::with([
+                'contentBlocks',
+                'user',
+                'categories' => function($q) use ($locale) {
+                    $q->withTranslation($locale);
+                }
+            ])
+                ->where('user_id', auth()->id())
+                ->findOrFail($id);
             $news->update(['is_published' => !$news->is_published]);
 
             return $this->successResponse(NewsResource::make($news));
@@ -360,5 +480,26 @@ class NewsController extends Controller
         } catch (\Exception $e) {
             return $this->errorResponse('Помилка при зміні статусу', 500, $e->getMessage());
         }
+    }
+    private function parseCategoryIds($request): array
+    {
+        if (!$request->filled('category_ids')) {
+            return [];
+        }
+
+        $categoryIds = $request->category_ids;
+
+        if (is_string($categoryIds)) {
+            return array_filter(
+                array_map('intval', explode(',', $categoryIds)),
+                fn($id) => $id > 0
+            );
+        }
+
+        if (is_array($categoryIds)) {
+            return array_filter($categoryIds, fn($id) => is_numeric($id) && $id > 0);
+        }
+
+        return [];
     }
 }

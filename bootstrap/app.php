@@ -16,8 +16,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectGuestsTo(fn (Request $request) =>
         $request->is('api/*') ? null : route('login')
         );
+
         $middleware->api(append: [
             \App\Http\Middleware\SetLocaleFromHeader::class,
+        ]);
+
+        $middleware->alias([
+            'admin' => \App\Http\Middleware\AdminOnly::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

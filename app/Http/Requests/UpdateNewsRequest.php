@@ -16,18 +16,44 @@ class UpdateNewsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'title' => 'sometimes|string|max:255',
-            'image' => 'sometimes|image|mimes:jpeg,jpg,png|max:2048',
-            'short_description' => 'sometimes|string',
+            'title' => 'sometimes|required|string|max:255',
+            'image' => 'nullable|sometimes|image|mimes:jpeg,jpg,png|max:2048',
+            'short_description' => 'sometimes|required|string|max:1000',
+            'is_published' => 'sometimes|boolean',
 
-            'category_ids' => 'nullable|array|max:10',
-            'category_ids.*' => 'integer|exists:categories,id',
+            'category_ids' => [
+                'nullable',
+                function ($attribute, $value, $fail) {
+                    if (empty($value)) return;
 
-            'content_blocks' => 'sometimes|array|max:50',
-            'content_blocks.*.id' => 'sometimes|integer|exists:content_blocks,id',
+                    $ids = is_string($value)
+                        ? array_map('intval', explode(',', $value))
+                        : (array) $value;
+
+                    $validIds = array_filter($ids, fn($id) => $id > 0);
+
+                    if (empty($validIds)) {
+                        $fail('Виберіть хоча б одну категорію');
+                        return;
+                    }
+
+                    if (count($validIds) > 10) {
+                        $fail('Максимум 10 категорій');
+                        return;
+                    }
+
+                    $invalidIds = array_diff($validIds, Category::pluck('id')->toArray());
+                    if (!empty($invalidIds)) {
+                        $fail('Категорії не існують: ' . implode(', ', $invalidIds));
+                    }
+                },
+            ],
+
+            'content_blocks' => 'sometimes|nullable|array|max:50',
+            'content_blocks.*.id' => 'sometimes|nullable|integer|exists:content_blocks,id',
             'content_blocks.*.type' => 'required|in:text,image,text_image_right,text_image_left',
             'content_blocks.*.order' => 'required|integer|min:1|distinct',
-            'content_blocks.*.text_content' => 'nullable|string',
+            'content_blocks.*.text_content' => 'nullable|string|max:5000',
             'content_blocks.*.image' => 'nullable|image|mimes:jpeg,jpg,png|max:2048',
         ];
     }
@@ -35,66 +61,48 @@ class UpdateNewsRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'title.max' => 'Назва не може перевищувати 255 символів',
-            'image.image' => 'Файл повинен бути зображенням',
-            'image.mimes' => 'Підтримуються тільки форматі: jpeg, jpg, png',
-            'image.max' => 'Розмір зображення не може перевищувати 2MB',
+            'title.required' => 'Назва є обов\'язковою при оновленні',
+            'title.max' => 'Назва не більше 255 символів',
+            'short_description.required' => 'Опис обов\'язковий',
+            'image.image' => 'Файл має бути зображенням (jpeg,jpg,png)',
+            'image.max' => 'Зображення до 2MB',
 
-            'category_ids.array' => 'Категорії мають бути масивом',
-            'category_ids.max' => 'Максимум 10 категорій',
-            'category_ids.*.integer' => 'ID категорії має бути числом',
-            'category_ids.*.exists' => 'Категорія не існує',
+            'category_ids' => 'Невірний формат: "1,3" або [1,3]',
 
-            'content_blocks.max' => 'Максимальна кількість блоків - 50',
-            'content_blocks.*.id.exists' => 'Блок з таким ID не існує',
-            'content_blocks.*.type.required' => 'Тип блоку є обов\'язковим',
-            'content_blocks.*.type.in' => 'Тип має бути: text, image, text_image_right, text_image_left',
-            'content_blocks.*.order.required' => 'Порядковий номер є обов\'язковим',
-            'content_blocks.*.order.integer' => 'Порядковий номер має бути цілим числом',
-            'content_blocks.*.order.min' => 'Порядковий номер має бути більше 0',
-            'content_blocks.*.order.distinct' => 'Порядкові номери блоків мають бути унікальними',
-            'content_blocks.*.image.image' => 'Файл повинен бути зображенням',
-            'content_blocks.*.image.mimes' => 'Підтримуються тільки форматі: jpeg, jpg, png',
-            'content_blocks.*.image.max' => 'Розмір зображення не може перевищувати 2MB',
+            'content_blocks.max' => 'Макс. 50 блоків',
+            'content_blocks.*.id.exists' => 'Блок не існує',
+            'content_blocks.*.type.required' => 'Тип блоку обов\'язковий',
+            'content_blocks.*.order.distinct' => 'Унікальні порядки',
         ];
     }
 
     public function withValidator($validator)
     {
         $validator->after(function ($validator) {
-            $categoryIds = $this->input('category_ids', []);
+            $newsId = $this->route('id');
 
+            $categoryIds = $this->parseCategoryIds($this);
             if (!empty($categoryIds)) {
-                $activeCount = Category::whereIn('id', $categoryIds)
-                    ->where('is_active', true)
-                    ->count();
-
-                if ($activeCount !== count($categoryIds)) {
-                    $validator->errors()->add('category_ids',
-                        'Одна або декілька категорій неактивні або не існують');
+                $inactiveCount = Category::whereIn('id', $categoryIds)
+                    ->where('is_active', false)->count();
+                if ($inactiveCount > 0) {
+                    $validator->errors()->add('category_ids', 'Є неактивні категорії');
                 }
             }
 
             $blocks = $this->input('content_blocks', []);
-            $newsId = $this->route('id');
-
             $blockIds = array_filter(array_column($blocks, 'id'));
 
             if (!empty($blockIds)) {
                 if (count($blockIds) !== count(array_unique($blockIds))) {
-                    $validator->errors()->add('content_blocks',
-                        'ID блоків мають бути унікальними');
+                    $validator->errors()->add('content_blocks', 'Унікальні ID блоків');
                     return;
                 }
 
-                $validCount = ContentBlock::where('news_id', $newsId)
-                    ->whereIn('id', $blockIds)
-                    ->count();
-
-                if ($validCount !== count($blockIds)) {
-                    $validator->errors()->add('content_blocks',
-                        'Один або декілька блоків не належать цій новині');
-                    return;
+                $foreignCount = ContentBlock::where('news_id', $newsId)
+                    ->whereIn('id', $blockIds)->count();
+                if ($foreignCount !== count($blockIds)) {
+                    $validator->errors()->add('content_blocks', 'Блоки належать цій новині');
                 }
             }
 
@@ -102,60 +110,48 @@ class UpdateNewsRequest extends FormRequest
                 $type = $block['type'] ?? null;
                 $blockId = $block['id'] ?? null;
 
-                if ($type === 'text' && empty(trim($block['text_content'] ?? ''))) {
-                    $validator->errors()->add(
-                        "content_blocks.{$index}.text_content",
-                        'Текст є обов\'язковим для типу text'
-                    );
-                }
-
-                if ($type === 'image') {
-                    if (!$blockId && !$this->hasFile("content_blocks.{$index}.image")) {
-                        $validator->errors()->add(
-                            "content_blocks.{$index}.image",
-                            'Зображення є обов\'язковим для нового блоку типу image'
-                        );
-                    }
-
-                    if ($blockId) {
-                        $existingBlock = ContentBlock::find($blockId);
-                        if ($existingBlock && $existingBlock->type !== 'image'
-                            && !$this->hasFile("content_blocks.{$index}.image")) {
-                            $validator->errors()->add(
-                                "content_blocks.{$index}.image",
-                                'При зміні типу на image необхідно завантажити зображення'
-                            );
-                        }
-                    }
-                }
-
-                if (in_array($type, ['text_image_right', 'text_image_left'])) {
-                    if (empty(trim($block['text_content'] ?? ''))) {
-                        $validator->errors()->add(
-                            "content_blocks.{$index}.text_content",
-                            'Текст є обов\'язковим для цього типу блоку'
-                        );
-                    }
-
-                    if (!$blockId && !$this->hasFile("content_blocks.{$index}.image")) {
-                        $validator->errors()->add(
-                            "content_blocks.{$index}.image",
-                            'Зображення є обов\'язковим для нового блоку цього типу'
-                        );
-                    }
-
-                    if ($blockId) {
-                        $existingBlock = ContentBlock::find($blockId);
-                        if ($existingBlock && !in_array($existingBlock->type, ['text_image_right', 'text_image_left', 'image'])
-                            && !$this->hasFile("content_blocks.{$index}.image")) {
-                            $validator->errors()->add(
-                                "content_blocks.{$index}.image",
-                                'При зміні типу на text_image необхідно завантажити зображення'
-                            );
-                        }
-                    }
-                }
+                match($type) {
+                    'text' => $this->validateTextBlock($validator, $index, $block),
+                    'image' => $this->validateImageBlock($validator, $index, $block, $blockId),
+                    'text_image_right', 'text_image_left' =>
+                    $this->validateTextImageBlock($validator, $index, $block, $blockId),
+                    default => $validator->errors()->add("content_blocks.{$index}.type", 'Невідомий тип'),
+                };
             }
         });
+    }
+
+    private function parseCategoryIds($request): array
+    {
+        if (!$request->filled('category_ids')) return [];
+        $value = $request->category_ids;
+        if (is_string($value)) {
+            return array_filter(array_map('intval', explode(',', $value)), fn($id) => $id > 0);
+        }
+        return array_filter($value ?? [], fn($id) => is_numeric($id) && $id > 0);
+    }
+
+    private function validateTextBlock($validator, $index, $block)
+    {
+        if (empty(trim($block['text_content'] ?? ''))) {
+            $validator->errors()->add("content_blocks.{$index}.text_content", 'Текст обов\'язковий');
+        }
+    }
+
+    private function validateImageBlock($validator, $index, $block, $blockId)
+    {
+        if (!$blockId && !$this->hasFile("content_blocks.{$index}.image")) {
+            $validator->errors()->add("content_blocks.{$index}.image", 'Зображення обов\'язкове');
+        }
+    }
+
+    private function validateTextImageBlock($validator, $index, $block, $blockId)
+    {
+        if (empty(trim($block['text_content'] ?? ''))) {
+            $validator->errors()->add("content_blocks.{$index}.text_content", 'Текст обов\'язковий');
+        }
+        if (!$blockId && !$this->hasFile("content_blocks.{$index}.image")) {
+            $validator->errors()->add("content_blocks.{$index}.image", 'Зображення обов\'язкове');
+        }
     }
 }

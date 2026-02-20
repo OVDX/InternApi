@@ -20,8 +20,33 @@ class StoreNewsRequest extends FormRequest
             'short_description' => 'required|string',
             'is_published' => 'required|in:true,false,0,1',
 
-            'category_ids' => 'nullable|array|max:10',
-            'category_ids.*' => 'integer|exists:categories,id',
+            'category_ids' => [
+                'nullable',
+                function ($attribute, $value, $fail) {
+                    if (empty($value)) return;
+
+                    $ids = is_string($value)
+                        ? array_map('intval', explode(',', $value))
+                        : (array) $value;
+
+                    $validIds = array_filter($ids, fn($id) => $id > 0);
+
+                    if (empty($validIds)) {
+                        $fail('Виберіть хоча б одну категорію');
+                        return;
+                    }
+
+                    if (count($validIds) > 10) {
+                        $fail('Максимум 10 категорій');
+                        return;
+                    }
+
+                    $invalidIds = array_diff($validIds, Category::pluck('id')->toArray());
+                    if (!empty($invalidIds)) {
+                        $fail('Категорії не існують: ' . implode(', ', $invalidIds));
+                    }
+                },
+            ],
 
             'content_blocks' => 'nullable|array|max:50',
             'content_blocks.*.type' => 'required|in:text,image,text_image_right,text_image_left',
@@ -42,11 +67,8 @@ class StoreNewsRequest extends FormRequest
             'short_description.required' => 'Короткий опис є обов\'язковим',
             'is_published.required' => 'Статус публікації є обов\'язковим',
             'is_published.in' => 'Статус публікації має бути true або false',
+            'category_ids' => 'Невірний формат ID категорій. Використовуйте "1,3" або [1,3]',
 
-            'category_ids.array' => 'Категорії мають бути масивом',
-            'category_ids.max' => 'Максимум 10 категорій',
-            'category_ids.*.integer' => 'ID категорії має бути числом',
-            'category_ids.*.exists' => 'Категорія не існує',
 
             'content_blocks.max' => 'Максимальна кількість блоків - 50',
             'content_blocks.*.type.required' => 'Тип блоку є обов\'язковим',
@@ -64,53 +86,67 @@ class StoreNewsRequest extends FormRequest
     public function withValidator($validator)
     {
         $validator->after(function ($validator) {
-            $categoryIds = $this->input('category_ids', []);
-
+            $categoryIds = $this->parseCategoryIds($this);
             if (!empty($categoryIds)) {
-                $activeCount = Category::whereIn('id', $categoryIds)
-                    ->where('is_active', true)
+                $inactiveCount = Category::whereIn('id', $categoryIds)
+                    ->where('is_active', false)
                     ->count();
 
-                if ($activeCount !== count($categoryIds)) {
-                    $validator->errors()->add('category_ids',
-                        'Одна або декілька категорій неактивні або не існують');
+                if ($inactiveCount > 0) {
+                    $validator->errors()->add('category_ids', 'Є неактивні категорії');
                 }
             }
 
             $blocks = $this->input('content_blocks', []);
-
             foreach ($blocks as $index => $block) {
                 $type = $block['type'] ?? null;
 
-                if ($type === 'text' && empty(trim($block['text_content'] ?? ''))) {
-                    $validator->errors()->add(
-                        "content_blocks.{$index}.text_content",
-                        'Текст є обов\'язковим для типу text'
-                    );
-                }
-
-                if ($type === 'image' && !$this->hasFile("content_blocks.{$index}.image")) {
-                    $validator->errors()->add(
-                        "content_blocks.{$index}.image",
-                        'Зображення є обов\'язковим для типу image'
-                    );
-                }
-
-                if (in_array($type, ['text_image_right', 'text_image_left'])) {
-                    if (empty(trim($block['text_content'] ?? ''))) {
-                        $validator->errors()->add(
-                            "content_blocks.{$index}.text_content",
-                            'Текст є обов\'язковим для цього типу блоку'
-                        );
-                    }
-                    if (!$this->hasFile("content_blocks.{$index}.image")) {
-                        $validator->errors()->add(
-                            "content_blocks.{$index}.image",
-                            'Зображення є обов\'язковим для цього типу блоку'
-                        );
-                    }
-                }
+                match($type) {
+                    'text' => $this->validateTextBlock($validator, $index, $block),
+                    'image' => $this->validateImageBlock($validator, $index, $block),
+                    'text_image_right', 'text_image_left' =>
+                    $this->validateTextImageBlock($validator, $index, $block),
+                    default => null
+                };
             }
         });
+    }
+
+    private function parseCategoryIds($request): array
+    {
+        if (!$request->filled('category_ids')) return [];
+
+        $value = $request->category_ids;
+        if (is_string($value)) {
+            return array_filter(array_map('intval', explode(',', $value)), fn($id) => $id > 0);
+        }
+        if (is_array($value)) {
+            return array_filter($value, fn($id) => is_numeric($id) && $id > 0);
+        }
+        return [];
+    }
+
+    private function validateTextBlock($validator, $index, $block)
+    {
+        if (empty(trim($block['text_content'] ?? ''))) {
+            $validator->errors()->add("content_blocks.{$index}.text_content", 'Текст обов\'язковий');
+        }
+    }
+
+    private function validateImageBlock($validator, $index, $block)
+    {
+        if (!$this->hasFile("content_blocks.{$index}.image")) {
+            $validator->errors()->add("content_blocks.{$index}.image", 'Зображення обов\'язкове');
+        }
+    }
+
+    private function validateTextImageBlock($validator, $index, $block)
+    {
+        if (empty(trim($block['text_content'] ?? ''))) {
+            $validator->errors()->add("content_blocks.{$index}.text_content", 'Текст обов\'язковий');
+        }
+        if (!$this->hasFile("content_blocks.{$index}.image")) {
+            $validator->errors()->add("content_blocks.{$index}.image", 'Зображення обов\'язкове');
+        }
     }
 }

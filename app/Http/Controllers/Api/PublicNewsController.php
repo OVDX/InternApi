@@ -10,6 +10,7 @@ use App\Models\News;
 use App\Services\PublicNewsQueryBuilder;
 use App\Traits\ApiResponse;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\Request;
 use OpenApi\Attributes as OA;
 
 class PublicNewsController extends Controller
@@ -26,11 +27,28 @@ class PublicNewsController extends Controller
         security: [],
         tags: [OpenApiSpec::TAG_PUBLIC_NEWS],
         parameters: [
+            new OA\Parameter(
+                name: 'Accept-Language',
+                description: 'Мова для назв категорій',
+                in: 'header',
+                required: false,
+                schema: new OA\Schema(
+                    type: 'string',
+                    default: 'uk',
+                    enum: ['uk', 'en']
+                )
+            ),
             new OA\QueryParameter(
                 name: 'search',
                 description: 'Пошук за назвою або описом',
                 required: false,
                 schema: new OA\Schema(type: 'string', example: 'технологія')
+            ),
+            new OA\QueryParameter(
+                name: 'category_id',
+                description: 'ID категорії (одна)',
+                required: false,
+                schema: new OA\Schema(type: 'integer', example: 1)
             ),
             new OA\QueryParameter(
                 name: 'author_id',
@@ -98,9 +116,15 @@ class PublicNewsController extends Controller
     public function index(PublicNewsFilterRequest $request)
     {
         try {
-            $query = $this->queryBuilder->build($request->validated());
+            $locale = $request->header('Accept-Language', app()->getLocale());
+            $locale = in_array($locale, ['uk', 'en', 'ru']) ? $locale : 'uk';
 
-            return $this->successResponse($query->paginate(15));
+            $news = $this->queryBuilder->build($request->validated())
+                ->with(['categories' => function($q) use ($locale) {
+                    $q->withTranslation($locale);
+                }])
+                ->paginate(15);
+            return NewsResource::collection($news);
 
         } catch (\Exception $e) {
             return $this->errorResponse('Помилка при отриманні новин', 500, $e->getMessage());
@@ -113,6 +137,17 @@ class PublicNewsController extends Controller
         security: [],
         tags: [OpenApiSpec::TAG_PUBLIC_NEWS],
         parameters: [
+            new OA\Parameter(
+                name: 'Accept-Language',
+                description: 'Мова для назв категорій',
+                in: 'header',
+                required: false,
+                schema: new OA\Schema(
+                    type: 'string',
+                    default: 'uk',
+                    enum: ['uk', 'en']
+                )
+            ),
             new OA\PathParameter(
                 name: 'id',
                 description: 'ID новини',
@@ -146,10 +181,19 @@ class PublicNewsController extends Controller
             ),
         ]
     )]
-    public function show(int $id)
+    public function show(Request $request, int $id)
     {
         try {
-            $news = News::with(['contentBlocks', 'user'])
+            $locale = $request->header('Accept-Language', app()->getLocale());
+            $locale = in_array($locale, ['uk', 'en', 'ru']) ? $locale : 'uk';
+
+            $news = News::with([
+                'contentBlocks',
+                'user',
+                'categories' => function($q) use ($locale) {
+                    $q->withTranslation($locale);
+                }
+            ])
                 ->published()
                 ->findOrFail($id);
 
