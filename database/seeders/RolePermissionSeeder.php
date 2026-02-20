@@ -1,5 +1,4 @@
 <?php
-// database/seeders/RolePermissionSeeder.php
 
 namespace Database\Seeders;
 

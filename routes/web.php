@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\AdminUserController;
 use App\Http\Controllers\Api\Admin\CategoryController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -53,4 +54,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::resource('categories', CategoryController::class)
         ->parameters(['categories' => 'category'])
         ->except(['show']);
+    Route::apiResource('users', AdminUserController::class);
+    Route::patch('users/{user}/role', [AdminUserController::class, 'updateRole']);
+
 });

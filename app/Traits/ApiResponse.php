@@ -34,6 +34,11 @@ trait ApiResponse
     {
         return $this->errorResponse($message, 401);
     }
+    protected function forbiddenResponse(string $message = 'Доступ заборонено'): JsonResponse
+    {
+        return response()->json(['message' => $message], 403);
+    }
+
     protected function notFoundResponse(string $message = 'Ресурс не знайдено'): JsonResponse
     {
         return response()->json(['message' => $message], 404);

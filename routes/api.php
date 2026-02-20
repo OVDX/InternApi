@@ -1,7 +1,7 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\AdminUserController;
 use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\NewsBlockController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\NewsController;
 use App\Http\Controllers\Api\PublicNewsController;
@@ -11,7 +11,10 @@ Route::prefix('public')->group(function () {
     Route::get('/news', [PublicNewsController::class, 'index']);
     Route::get('/news/{id}', [PublicNewsController::class, 'show']);
 });
-
+Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function () {
+    Route::apiResource('users', AdminUserController::class);
+    Route::patch('users/{user}/role', [AdminUserController::class, 'updateRole']);
+});
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
@@ -31,10 +34,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/', [NewsController::class, 'store']);
         Route::post('/{id}', [NewsController::class, 'update']);
         Route::delete('/{id}', [NewsController::class, 'destroy']);
-//        Route::prefix('{newsId}/blocks')->group(function () {
-//            Route::post('/', [NewsBlockController::class, 'store']);
-//            Route::post('/{blockId}', [NewsBlockController::class, 'update']);
-//            Route::delete('/{blockId}', [NewsBlockController::class, 'destroy']);
-//        });
+
     });
+});
+Route::fallback(function () {
+    return response()->json([
+        'message' => 'Endpoint не знайдено'
+    ], 404);
 });

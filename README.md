@@ -130,6 +130,14 @@ Content-Type: application/json
 }
 ```
 
+### Admin pannel categories
+
+```
+http://localhost:8000/admin/categories
+```
+
+### To login as Admin after migrations 
+
 ### Token usage
 
 add token to all secured endpoints

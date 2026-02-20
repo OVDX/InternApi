@@ -30,6 +30,7 @@ class UserResource extends JsonResource
             'email' => $this->email,
             'avatar_url' => getFileUrl($this->avatar),
             'bio' => $this->bio,
+            'roles' => $this->getRoleNames()->toArray(),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];
