@@ -14,6 +14,7 @@ class AdminUserController extends Controller
 {
     use ApiResponse;
 
+
     #[OA\Get(
         path: '/api/admin/users',
         description: 'Отримати всіх користувачів (тільки для admin)',

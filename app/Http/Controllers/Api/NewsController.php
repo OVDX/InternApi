@@ -21,7 +21,10 @@ class NewsController extends Controller
 
     public function __construct(
         private NewsService $newsService
-    ) {}
+
+    ) {
+
+    }
 
     #[OA\Get(
         path: '/api/news',
