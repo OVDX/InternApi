@@ -121,7 +121,9 @@ class NewsController extends Controller
 
             $query->orderBy($sortBy, $sortOrder);
 
-            return $this->successResponse($query->paginate(15));
+            $news = $query->paginate(15);
+
+            return $this->successResponse(NewsResource::collection($news));
 
         } catch (\Exception $e) {
             return $this->errorResponse('Помилка при отриманні новин', 500, $e->getMessage());
