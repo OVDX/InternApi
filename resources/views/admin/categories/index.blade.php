@@ -4,6 +4,19 @@
 @section('header', 'Категорії')
 
 @section('content')
+    @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show mb-3">
+            {{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    @endif
+
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show mb-3">
+            {{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    @endif
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h4 class="mb-0">Список категорій</h4>
         <a href="{{ route('admin.categories.create') }}" class="btn btn-primary">

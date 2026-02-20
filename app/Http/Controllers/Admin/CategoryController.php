@@ -82,8 +82,10 @@ class CategoryController extends Controller
 
     public function destroy(Category $category): RedirectResponse
     {
-        if ($category->news()->exists()) {
-            return back()->with('error', 'Неможливо видалити категорію, до неї прив\'язані новини');
+        $newsCount = $category->news()->count();
+
+        if ($newsCount > 0) {
+            return back()->with('error', "Неможливо видалити. Прив'язано новин: {$newsCount}");
         }
 
         $category->delete();
@@ -92,4 +94,5 @@ class CategoryController extends Controller
             ->route('admin.categories.index')
             ->with('success', 'Категорію видалено');
     }
+
 }

@@ -22,10 +22,6 @@
             display: block;
             padding: 10px 15px;
         }
-        .sidebar a.active, .sidebar a:hover {
-            background-color: #495057;
-            color: #fff;
-        }
         .content { flex: 1; padding: 20px; }
         .navbar-admin {
             background-color: #fff;
@@ -71,12 +67,7 @@
             </div>
         </div>
 
-        @if(session('success'))
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                {{ session('success') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        @endif
+
 
         @if ($errors->any())
             <div class="alert alert-danger">
